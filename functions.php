@@ -1,11 +1,8 @@
 <?php 
 
 add_action( 'wp_enqueue_scripts', 'my_enqueue_assets' ); 
-
 function my_enqueue_assets() { 
-
     wp_enqueue_style( 'parent-style', get_template_directory_uri().'/style.css' ); 
-
 } 
 
 function my_added_social_icons($kkoptions) {
@@ -175,3 +172,54 @@ add_filter('et_epanel_layout_data', 'my_added_social_icons', 99);
 
 define( 'DDPL_DOMAIN', 'my-domain' ); // translation domain
 require_once( 'vendor/divi-disable-premade-layouts/divi-disable-premade-layouts.php' );
+
+
+
+
+function spn_list_plow_comparisons($the_query) {
+    $html = '';
+    $plows = [];
+    if ( $the_query->have_posts() ) {
+        while ( $the_query->have_posts() ) {
+            $the_query->the_post();
+            $p = get_post();
+            $terms = get_the_terms( $p->ID, 'plow_categories' );
+            $p->manufacturer = $terms[0]->name;
+            $plows[] = $p;
+        }
+    } 
+    wp_reset_postdata();
+    $html .= '<ul class="text-center">';
+    foreach($plows as $currPlow) {
+        
+        $currPlowTitle = $currPlow->manufacturer . ' ' . $currPlow->post_title;
+        $currPlowSlug = $currPlow->post_name;
+        foreach($plows as $vsPlow) {
+            $vsPlowTitle = $vsPlow->manufacturer . ' ' . $vsPlow->post_title;
+            $vsPlowSlug = $vsPlow->post_name;
+            if ($currPlowTitle !== $vsPlowTitle) {
+                $html .= '<li>';
+                $html .= '<a href="site_url("/compare?plow[]=" . $currPlowSlug . "&plow[]=" . $vsPlowSlug); ?>">';
+                $html .= $currPlowTitle . " vs " . $vsPlowTitle;
+                $html .= '</a>';
+                $html .= '</li>';
+            }
+        }
+    }
+    $html .= '</ul>';
+    return $html;
+}
+
+
+add_filter('the_content', 'spn_custom_content');
+function spn_custom_content ($content) {
+    if (is_page('All Plow Comparisons')) {
+        $args = array(
+            'post_type' => 'plows',
+            'posts_per_page' => -1,
+        );
+        $the_query = new WP_Query( $args );
+        $content = $content . spn_list_plow_comparisons($the_query);
+    }
+    return $content;
+}
